@@ -3,7 +3,7 @@
 	<name>AccountInquiry_API</name>
 	<comment></comment>
 	<projects>
-		<project>AccountInquiry_Common</project>
+
 		<project>AccountInquiry_SharedLibrary</project>
 	</projects>
 	<buildSpec>
