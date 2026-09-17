@@ -1,0 +1,64 @@
+
+BROKER SCHEMA AccountInquiry_SharedLibrary
+
+
+-- CHANNEL REQUEST
+
+CREATE PROCEDURE LogChannelRequest
+(
+    IN correlationId CHARACTER,
+    IN applicationName CHARACTER,
+    IN messageFlowName CHARACTER,
+    IN messageData CHARACTER
+)
+LANGUAGE DATABASE
+EXTERNAL NAME "LOG_CHANNEL_REQUEST";
+
+
+-- HOST REQUEST
+
+CREATE PROCEDURE LogHostRequest
+(
+    IN correlationId CHARACTER,
+    IN applicationName CHARACTER,
+    IN messageFlowName CHARACTER,
+    IN messageData CHARACTER
+)
+LANGUAGE DATABASE
+EXTERNAL NAME "LOG_HOST_REQUEST";
+
+
+-- HOST RESPONSE
+
+CREATE PROCEDURE LogHostResponse
+(
+    IN applicationName CHARACTER,
+    IN messageFlowName CHARACTER,
+    IN messageData CHARACTER
+)
+LANGUAGE DATABASE
+EXTERNAL NAME "LOG_HOST_RESPONSE";
+
+
+-- CHANNEL RESPONSE
+
+CREATE PROCEDURE LogChannelResponse
+(
+    IN applicationName CHARACTER,
+    IN messageFlowName CHARACTER,
+    IN messageData CHARACTER
+)
+LANGUAGE DATABASE
+EXTERNAL NAME "LOG_CHANNEL_RESPONSE";
+
+
+--ERROR LOGGING
+CREATE PROCEDURE LogApiErrorDB
+(
+    IN applicationName CHARACTER,
+    IN messageFlowName CHARACTER,
+    IN errorCode CHARACTER,
+    IN errorMessage CHARACTER
+)
+LANGUAGE DATABASE
+EXTERNAL NAME "LOG_API_ERROR";

@@ -1,0 +1,428 @@
+PATH AccountInquiry_SharedLibrary;
+
+CREATE COMPUTE MODULE AccountInquiry_Provider_Flow_Compute
+	
+    CREATE FUNCTION Main() RETURNS BOOLEAN
+
+    BEGIN
+
+        DECLARE accountId CHARACTER;
+
+
+
+        SET accountId =
+            InputRoot.XMLNSC.AccountInquiry.accountId;
+
+
+        SET Environment.Variables.Account[] =
+            PASSTHRU
+            (
+                'SELECT
+                    ACCOUNT_ID,
+                    ACCOUNT_NAME,
+                    ACCOUNT_TYPE,
+                    ACCOUNT_STATUS,
+                    CURRENCY,
+                    LEDGER_AMOUNT,
+                    AVAILABLE_AMOUNT,
+                    BRANCH_CODE,
+                    CUSTOMER_ID
+                 FROM ACCOUNT_INQUIRY
+                 WHERE ACCOUNT_ID = ?'
+                TO Database.uppari
+                VALUES(accountId)
+            );
+
+
+
+        IF CARDINALITY(Environment.Variables.Account[]) = 0 THEN
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.success =
+                'false';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.code =
+                'ER001';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.message =
+                'Account not found';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.details =
+                'Verify the account number and retry.';
+
+
+           
+
+
+            RETURN TRUE;
+
+        END IF;
+
+
+      
+
+        IF Environment.Variables.Account[1].AVAILABLE_AMOUNT < 0 THEN
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.success =
+                'false';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.code =
+                'ER002';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.message =
+                'Insufficient funds';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.details =
+                'The debit account does not have sufficient available balance.';
+            RETURN TRUE;
+
+        END IF;
+
+
+
+        IF Environment.Variables.Account[1].ACCOUNT_STATUS =
+            'DORMANT'
+
+        OR Environment.Variables.Account[1].ACCOUNT_STATUS =
+            'FROZEN' THEN
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.success =
+                'false';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.code =
+                'ER004';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.message =
+                'Account dormant or frozen';
+
+            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.details =
+                'Contact Core Banking team.';
+
+
+
+            RETURN TRUE;
+
+        END IF;
+
+
+        -- SUCCESS RESPONSE
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.success =
+            'true';
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.correlationId =
+            InputRoot.XMLNSC.AccountInquiry.requestId;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.accountId =
+            Environment.Variables.Account[1].ACCOUNT_ID;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.accountName =
+            Environment.Variables.Account[1].ACCOUNT_NAME;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.accountType =
+            Environment.Variables.Account[1].ACCOUNT_TYPE;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.accountStatus =
+            Environment.Variables.Account[1].ACCOUNT_STATUS;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.currency =
+            Environment.Variables.Account[1].CURRENCY;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.balances.LEDGER.amount =
+            Environment.Variables.Account[1].LEDGER_AMOUNT;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.balances.AVAIL.amount =
+            Environment.Variables.Account[1].AVAILABLE_AMOUNT;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.branchCode =
+            Environment.Variables.Account[1].BRANCH_CODE;
+
+        SET OutputRoot.XMLNSC.AccountInquiryResponse.customerId =
+            Environment.Variables.Account[1].CUSTOMER_ID;
+
+
+        -- HOST RESPONSE LOGGING - SUCCESS
+        -- Shared Library Procedure
+
+        CALL LogHostResponse
+        (
+            ApplicationLabel,
+
+            MessageFlowLabel,
+
+            CAST
+            (
+                ASBITSTREAM(OutputRoot.XMLNSC CCSID 1208)
+                AS CHARACTER CCSID 1208
+            )
+        );
+
+
+        RETURN TRUE;
+
+    END;
+
+END MODULE;
+	
+	
+	
+	
+
+--
+--    CREATE PROCEDURE LogHostResponseDB
+--    (
+--        IN applicationName CHARACTER,
+--        IN messageFlowName CHARACTER,
+--        IN messageData CHARACTER
+--    )
+--    LANGUAGE DATABASE
+--    EXTERNAL NAME "LOG_HOST_RESPONSE";
+--
+--
+--    CREATE FUNCTION Main() RETURNS BOOLEAN
+--
+--    BEGIN
+--
+--        DECLARE accountId CHARACTER;
+--
+--        SET accountId =
+--
+--            InputRoot.XMLNSC.AccountInquiry.accountId;
+--
+--
+--        -- =========================================
+--        -- FETCH ACCOUNT FROM DATABASE
+--        -- =========================================
+--
+--        SET Environment.Variables.Account[] =
+--
+--            PASSTHRU(
+--
+--                'SELECT
+--
+--                    ACCOUNT_ID,
+--
+--                    ACCOUNT_NAME,
+--
+--                    ACCOUNT_TYPE,
+--
+--                    ACCOUNT_STATUS,
+--
+--                    CURRENCY,
+--
+--                    LEDGER_AMOUNT,
+--
+--                    AVAILABLE_AMOUNT,
+--
+--                    BRANCH_CODE,
+--
+--                    CUSTOMER_ID
+--
+--                 FROM ACCOUNT_INQUIRY
+--
+--                 WHERE ACCOUNT_ID = ?'
+--
+--                TO Database.uppari
+--
+--                VALUES(accountId)
+--
+--            );
+--
+--
+--        -- =========================================
+--        -- CASE 2: ACCOUNT NOT FOUND
+--        -- =========================================
+--
+--        IF CARDINALITY(Environment.Variables.Account[]) = 0 THEN
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.success =
+--
+--                'false';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.code =
+--
+--                'ER001';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.message =
+--
+--                'Account not found';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.details =
+--
+--                'Verify the account number and retry.';
+--
+--
+--            -- HOST RESPONSE LOGGING
+--
+--            CALL LogHostResponseDB
+--            (
+--                ApplicationLabel,
+--                MessageFlowLabel,
+--                CAST(
+--                    ASBITSTREAM(OutputRoot.XMLNSC CCSID 1208)
+--                    AS CHARACTER CCSID 1208
+--                )
+--            );
+--
+--
+--            RETURN TRUE;
+--
+--        END IF;
+--
+--
+--        -- =========================================
+--        -- CASE 3: INSUFFICIENT FUNDS
+--        -- =========================================
+--
+--        IF Environment.Variables.Account[1].AVAILABLE_AMOUNT < 0 THEN
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.success =
+--
+--                'false';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.code =
+--
+--                'ER002';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.message =
+--
+--                'Insufficient funds';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.details =
+--
+--                'The debit account does not have sufficient available balance.';
+--
+--
+--            -- HOST RESPONSE LOGGING
+--
+--            CALL LogHostResponseDB
+--            (
+--                ApplicationLabel,
+--                MessageFlowLabel,
+--                CAST(
+--                    ASBITSTREAM(OutputRoot.XMLNSC CCSID 1208)
+--                    AS CHARACTER CCSID 1208
+--                )
+--            );
+--
+--
+--            RETURN TRUE;
+--
+--        END IF;
+--
+--
+--        -- =========================================
+--        -- CASE 4: DORMANT / FROZEN
+--        -- =========================================
+--
+--        IF Environment.Variables.Account[1].ACCOUNT_STATUS =
+--
+--            'DORMANT'
+--
+--        OR Environment.Variables.Account[1].ACCOUNT_STATUS =
+--
+--            'FROZEN' THEN
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.success =
+--
+--                'false';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.code =
+--
+--                'ER004';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.message =
+--
+--                'Account dormant or frozen';
+--
+--            SET OutputRoot.XMLNSC.AccountInquiryResponse.error.details =
+--
+--                'Contact Core Banking team.';
+--
+--
+--            -- HOST RESPONSE LOGGING
+--
+--            CALL LogHostResponseDB
+--            (
+--                ApplicationLabel,
+--                MessageFlowLabel,
+--                CAST(
+--                    ASBITSTREAM(OutputRoot.XMLNSC CCSID 1208)
+--                    AS CHARACTER CCSID 1208
+--                )
+--            );
+--
+--
+--            RETURN TRUE;
+--
+--        END IF;
+--
+--
+--        -- =========================================
+--        -- SUCCESS
+--        -- =========================================
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.success =
+--
+--            'true';
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.correlationId =
+--
+--            InputRoot.XMLNSC.AccountInquiry.requestId;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.accountId =
+--
+--            Environment.Variables.Account[1].ACCOUNT_ID;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.accountName =
+--
+--            Environment.Variables.Account[1].ACCOUNT_NAME;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.accountType =
+--
+--            Environment.Variables.Account[1].ACCOUNT_TYPE;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.accountStatus =
+--
+--            Environment.Variables.Account[1].ACCOUNT_STATUS;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.currency =
+--
+--            Environment.Variables.Account[1].CURRENCY;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.balances.LEDGER.amount =
+--
+--            Environment.Variables.Account[1].LEDGER_AMOUNT;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.balances.AVAIL.amount =
+--
+--            Environment.Variables.Account[1].AVAILABLE_AMOUNT;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.branchCode =
+--
+--            Environment.Variables.Account[1].BRANCH_CODE;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiryResponse.customerId =
+--
+--            Environment.Variables.Account[1].CUSTOMER_ID;
+--
+--
+--        -- =========================================
+--        -- HOST RESPONSE LOGGING - SUCCESS
+--        -- =========================================
+--
+--        CALL LogHostResponseDB
+--        (
+--            ApplicationLabel,
+--            MessageFlowLabel,
+--            CAST(
+--                ASBITSTREAM(OutputRoot.XMLNSC CCSID 1208)
+--                AS CHARACTER CCSID 1208
+--            )
+--        );
+--
+--
+--        RETURN TRUE;
+--
+--    END;
+--
+--END MODULE;

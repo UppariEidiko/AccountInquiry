@@ -1,0 +1,412 @@
+
+PATH AccountInquiry_SharedLibrary;
+
+CREATE COMPUTE MODULE postAccInq_Compute
+	
+    CREATE FUNCTION Main() RETURNS BOOLEAN
+    BEGIN
+    	
+        DECLARE accountId CHARACTER;
+        DECLARE requestId CHARACTER;
+        DECLARE channelId CHARACTER;
+        DECLARE i INTEGER 1;
+        DECLARE ch CHARACTER;
+
+
+       
+
+        SET Environment.Variables.Logging.CorrelationId =
+            COALESCE(InputRoot.JSON.Data.requestId, '');
+
+
+        -- CHANNEL REQUEST LOGGING
+        -- Procedure comes from Shared Library DBLogging
+
+        CALL LogChannelRequest
+        (
+            Environment.Variables.Logging.CorrelationId,
+
+            ApplicationLabel,
+
+            MessageFlowLabel,
+
+            CAST
+            (
+                ASBITSTREAM(InputRoot.JSON CCSID 1208)
+                AS CHARACTER CCSID 1208
+            )
+        );
+
+
+        SET accountId =
+            COALESCE(InputRoot.JSON.Data.accountId, '');
+
+        SET requestId =
+            COALESCE(InputRoot.JSON.Data.requestId, '');
+
+        SET channelId =
+            COALESCE(InputRoot.JSON.Data.channelId, '');
+
+
+
+        IF accountId = '' THEN
+
+            SET Environment.Variables.ErrorCode = '400';
+
+            SET Environment.Variables.ErrorMessage =
+                'Mandatory field accountNumber is missing';
+
+            PROPAGATE TO TERMINAL 'failure';
+
+            RETURN FALSE;
+
+        END IF;
+
+
+        IF LENGTH(accountId) <> 13 THEN
+
+            SET Environment.Variables.ErrorCode = '400';
+
+            SET Environment.Variables.ErrorMessage =
+                'accountId must be exactly 13 digits';
+
+            PROPAGATE TO TERMINAL 'failure';
+
+            RETURN FALSE;
+
+        END IF;
+
+
+
+        WHILE i <= 13 DO
+
+            SET ch =
+                SUBSTRING(accountId FROM i FOR 1);
+
+
+            IF ch < '0' THEN
+
+                SET Environment.Variables.ErrorCode = '400';
+
+                SET Environment.Variables.ErrorMessage =
+                    'No characters or special characters are allowed in accountId';
+
+                PROPAGATE TO TERMINAL 'failure';
+
+                RETURN FALSE;
+
+            END IF;
+
+
+            IF ch > '9' THEN
+
+                SET Environment.Variables.ErrorCode = '400';
+
+                SET Environment.Variables.ErrorMessage =
+                    'No characters or special characters are allowed in accountId';
+
+                PROPAGATE TO TERMINAL 'failure';
+
+                RETURN FALSE;
+
+            END IF;
+
+
+            SET i = i + 1;
+
+        END WHILE;
+
+
+        
+
+        IF requestId = '' THEN
+
+
+            SET Environment.Variables.ErrorCode = '400';
+
+            SET Environment.Variables.ErrorMessage =
+                'Mandatory field requestId is missing';
+
+            PROPAGATE TO TERMINAL 'failure';
+
+            RETURN FALSE;
+
+        END IF;
+
+
+
+        IF channelId = '' THEN
+
+            SET Environment.Variables.ErrorCode = '400';
+
+            SET Environment.Variables.ErrorMessage =
+                'Mandatory field channelId is missing';
+
+            PROPAGATE TO TERMINAL 'failure';
+
+            RETURN FALSE;
+
+        END IF;
+
+
+        -- JSON TO XMLNSC
+
+        SET OutputRoot.XMLNSC.AccountInquiry.accountId =
+            accountId;
+
+        SET OutputRoot.XMLNSC.AccountInquiry.requestId =
+            requestId;
+
+        SET OutputRoot.XMLNSC.AccountInquiry.channelId =
+            channelId;
+
+
+        -- HOST REQUEST LOGGING
+        -- Procedure comes from Shared Library DBLogging
+
+        CALL LogHostRequest
+        (
+            Environment.Variables.Logging.CorrelationId,
+
+            ApplicationLabel,
+
+            MessageFlowLabel,
+
+            CAST
+            (
+                ASBITSTREAM(OutputRoot.XMLNSC CCSID 1208)
+                AS CHARACTER CCSID 1208
+            )
+        );
+
+
+        RETURN TRUE;
+
+    END;
+
+END MODULE;
+	
+--	
+--
+--    CREATE PROCEDURE LogChannelRequestDB
+--    (
+--        IN correlationId CHARACTER,
+--        IN applicationName CHARACTER,
+--        IN messageFlowName CHARACTER,
+--        IN messageData CHARACTER
+--    )
+--    LANGUAGE DATABASE
+--    EXTERNAL NAME "LOG_CHANNEL_REQUEST";
+--
+--
+--    CREATE FUNCTION Main() RETURNS BOOLEAN
+--    BEGIN
+--
+--        SET Environment.Variables.Logging.CorrelationId =
+--            InputRoot.JSON.Data.requestId;
+--
+--
+--        -- =========================================
+--        -- CHANNEL REQUEST LOGGING
+--        -- =========================================
+--
+--        CALL LogChannelRequestDB
+--        (
+--            Environment.Variables.Logging.CorrelationId,
+--            ApplicationLabel,
+--            MessageFlowLabel,
+--            CAST(
+--                ASBITSTREAM(InputRoot.JSON CCSID 1208)
+--                AS CHARACTER CCSID 1208
+--            )
+--        );
+--
+--
+--        DECLARE accountId CHARACTER;
+--
+--        DECLARE requestId CHARACTER;
+--
+--        DECLARE channelId CHARACTER;
+--
+--        DECLARE i INTEGER 1;
+--
+--        DECLARE ch CHARACTER;
+--
+--
+--        SET accountId = COALESCE(InputRoot.JSON.Data.accountId, '');
+--
+--        SET requestId = COALESCE(InputRoot.JSON.Data.requestId, '');
+--
+--        SET channelId = COALESCE(InputRoot.JSON.Data.channelId, '');
+--
+--
+--        -- =========================================
+--        -- CASE 1: accountId missing
+--        -- =========================================
+--
+--        IF accountId = '' THEN
+--
+--            SET Environment.Variables.ErrorCode = '400';
+--
+--            SET Environment.Variables.ErrorMessage =
+--
+--                'Mandatory field accountNumber is missing';
+--
+--            PROPAGATE TO TERMINAL 'failure';
+--
+--            RETURN FALSE;
+--
+--        END IF;
+--
+--
+--        -- =========================================
+--        -- accountId length validation
+--        -- =========================================
+--
+--        IF LENGTH(accountId) <> 13 THEN
+--
+--            SET Environment.Variables.ErrorCode = '400';
+--
+--            SET Environment.Variables.ErrorMessage =
+--
+--                'accountId must be exactly 13 digits';
+--
+--            PROPAGATE TO TERMINAL 'failure';
+--
+--            RETURN FALSE;
+--
+--        END IF;
+--
+--
+--        -- =========================================
+--        -- accountId numeric validation
+--        -- =========================================
+--
+--        WHILE i <= 13 DO
+--
+--            SET ch = SUBSTRING(accountId FROM i FOR 1);
+--
+--            IF ch < '0' THEN
+--
+--                SET Environment.Variables.ErrorCode = '400';
+--
+--                SET Environment.Variables.ErrorMessage =
+--
+--                    'No characters or special characters are allowed in accountId';
+--
+--                PROPAGATE TO TERMINAL 'failure';
+--
+--                RETURN FALSE;
+--
+--            END IF;
+--
+--
+--            IF ch > '9' THEN
+--
+--                SET Environment.Variables.ErrorCode = '400';
+--
+--                SET Environment.Variables.ErrorMessage =
+--
+--                    'No characters or special characters are allowed in accountId';
+--
+--                PROPAGATE TO TERMINAL 'failure';
+--
+--                RETURN FALSE;
+--
+--            END IF;
+--
+--
+--            SET i = i + 1;
+--
+--        END WHILE;
+--
+--
+--        -- =========================================
+--        -- CASE 1: requestId missing
+--        -- =========================================
+--
+--        IF requestId = '' THEN
+--
+--            SET Environment.Variables.ErrorCode = '400';
+--
+--            SET Environment.Variables.ErrorMessage =
+--
+--                'Mandatory field requestId is missing';
+--
+--            PROPAGATE TO TERMINAL 'failure';
+--
+--            RETURN FALSE;
+--
+--        END IF;
+--
+--
+--        -- =========================================
+--        -- CASE 1: channelId missing
+--        -- =========================================
+--
+--        IF channelId = '' THEN
+--
+--            SET Environment.Variables.ErrorCode = '400';
+--
+--            SET Environment.Variables.ErrorMessage =
+--
+--                'Mandatory field channelId is missing';
+--
+--            PROPAGATE TO TERMINAL 'failure';
+--
+--            RETURN FALSE;
+--
+--        END IF;
+--
+--
+--        -- =========================================
+--        -- JSON TO XMLNSC
+--        -- =========================================
+--
+--        SET OutputRoot.XMLNSC.AccountInquiry.accountId =
+--
+--            accountId;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiry.requestId =
+--
+--            requestId;
+--
+--        SET OutputRoot.XMLNSC.AccountInquiry.channelId =
+--
+--            channelId;
+--
+--
+--        -- =========================================
+--        -- HOST REQUEST LOGGING
+--        -- =========================================
+--
+--        CALL LogHostRequestDB
+--        (
+--            Environment.Variables.Logging.CorrelationId,
+--            ApplicationLabel,
+--            MessageFlowLabel,
+--            CAST(
+--                ASBITSTREAM(OutputRoot.XMLNSC CCSID 1208)
+--                AS CHARACTER CCSID 1208
+--            )
+--        );
+--
+--
+--        RETURN TRUE;
+--
+--    END;
+--
+--
+--    CREATE PROCEDURE LogHostRequestDB
+--    (
+--        IN correlationId CHARACTER,
+--        IN applicationName CHARACTER,
+--        IN messageFlowName CHARACTER,
+--        IN messageData CHARACTER
+--    )
+--    LANGUAGE DATABASE
+--    EXTERNAL NAME "LOG_HOST_REQUEST";
+--
+--
+--END MODULE;
+--	

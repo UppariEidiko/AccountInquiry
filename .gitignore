@@ -1,0 +1,34 @@
+# Eclipse / ACE workspace metadata
+.metadata/
+.recommenders/
+
+# Eclipse settings - keep project source, ignore workspace-specific settings
+**/.settings/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# ACE runtime/generated directories
+work/
+logs/
+target/
+
+# Generated BAR files
+*.bar
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# SSL / security material
+*.jks
+*.p12
+*.pfx
+*.key
+
+# Certificates/private material
+*.pem

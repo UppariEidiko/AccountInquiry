@@ -1,0 +1,48 @@
+
+
+CREATE COMPUTE MODULE postAccInq_Compute3
+
+    CREATE FUNCTION Main() RETURNS BOOLEAN
+    BEGIN
+
+        -- Backend could not be reached.
+        -- Convert the HTTP Request node failure into
+        -- the API-level 503 response.
+
+        SET Environment.Variables.ErrorCode = '503';
+
+        SET Environment.Variables.ErrorMessage =
+            'Service unavailable';
+
+        -- Preserve the original requestId
+        SET Environment.Variables.RequestId =
+            COALESCE(
+                InputRoot.JSON.Data.requestId,
+                Environment.Variables.RequestId,
+                ''
+            );
+
+        -- Set HTTP response status
+        SET OutputLocalEnvironment.Destination.HTTP.ReplyStatusCode = 503;
+
+        -- Keep JSON response
+        SET OutputRoot.JSON.Data.requestId =
+            Environment.Variables.RequestId;
+
+        SET OutputRoot.JSON.Data.status =
+            'FAILED';
+
+        SET OutputRoot.JSON.Data.error.code =
+            '503';
+
+        SET OutputRoot.JSON.Data.error.message =
+            'Service unavailable';
+
+        SET OutputRoot.JSON.Data.error.details =
+            'The api is currently unavailable. Please try again later.';
+
+        RETURN TRUE;
+
+    END;
+
+END MODULE;

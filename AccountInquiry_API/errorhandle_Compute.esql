@@ -1,0 +1,208 @@
+PATH AccountInquiry_SharedLibrary;
+
+
+CREATE COMPUTE MODULE errorhandle_Compute
+	
+
+    CREATE FUNCTION Main() RETURNS BOOLEAN
+    BEGIN
+    CALL LogApiErrorDB
+(
+    ApplicationLabel,
+    MessageFlowLabel,
+    COALESCE(
+        Environment.Variables.ErrorCode,
+        ''
+    ),
+    COALESCE(
+        Environment.Variables.ErrorMessage,
+        ''
+    )
+);
+        -- CASE 1: INVALID REQUEST - 400
+  
+
+        IF Environment.Variables.ErrorCode = '400' THEN
+
+            SET OutputRoot.JSON.Data.status =
+                'FAILED';
+
+            SET OutputRoot.JSON.Data.error.code =
+                '400';
+
+            SET OutputRoot.JSON.Data.error.message =
+                Environment.Variables.ErrorMessage;
+
+            RETURN TRUE;
+
+
+        -- CASE 2: ACCOUNT NOT FOUND - ER001
+
+        ELSEIF Environment.Variables.ErrorCode = 'ER001' THEN
+
+            SET OutputRoot.JSON.Data.status =
+                'FAILED';
+
+            SET OutputRoot.JSON.Data.error.code =
+                'ER001';
+
+            SET OutputRoot.JSON.Data.error.message =
+                Environment.Variables.ErrorMessage;
+
+            SET OutputRoot.JSON.Data.error.details =
+                'Verify the account number and retry.';
+
+
+        -- CASE 3: INSUFFICIENT FUNDS - ER002
+
+        ELSEIF Environment.Variables.ErrorCode = 'ER002' THEN
+
+            SET OutputRoot.JSON.Data.status =
+                'FAILED';
+
+            SET OutputRoot.JSON.Data.error.code =
+                'ER002';
+
+            SET OutputRoot.JSON.Data.error.message =
+                Environment.Variables.ErrorMessage;
+
+            SET OutputRoot.JSON.Data.error.details =
+                'The debit account does not have sufficient available balance.';
+
+
+        -- CASE 4: DORMANT / FROZEN - ER004
+
+        ELSEIF Environment.Variables.ErrorCode = 'ER004' THEN
+
+            SET OutputRoot.JSON.Data.status =
+                'FAILED';
+
+            SET OutputRoot.JSON.Data.error.code =
+                'ER004';
+
+            SET OutputRoot.JSON.Data.error.message =
+                Environment.Variables.ErrorMessage;
+
+            SET OutputRoot.JSON.Data.error.details =
+                'Contact Core Banking team.';
+
+
+        -- CASE 5: FINACLE ERROR - ER099
+
+        ELSEIF Environment.Variables.ErrorCode = 'ER099' THEN
+
+            SET OutputRoot.JSON.Data.status =
+                'FAILED';
+
+            SET OutputRoot.JSON.Data.error.code =
+                'ER099';
+
+            SET OutputRoot.JSON.Data.error.message =
+                'General Finacle error';
+
+            SET OutputRoot.JSON.Data.error.details =
+                'An unexpected error occurred while processing the request.';
+
+
+        -- CASE 6: SERVICE UNAVAILABLE - 503
+
+        ELSEIF Environment.Variables.ErrorCode = '503' THEN
+
+            SET OutputRoot.JSON.Data.requestId =
+                Environment.Variables.RequestId;
+
+            SET OutputRoot.JSON.Data.status =
+                'FAILED';
+
+            SET OutputRoot.JSON.Data.error.code =
+                '503';
+
+            SET OutputRoot.JSON.Data.error.message =
+                'Service unavailable';
+
+            SET OutputRoot.JSON.Data.error.details =
+                'The api is currently unavailable. Please try again later.';
+
+        END IF;
+
+
+        RETURN TRUE;
+
+    END;
+
+END MODULE;
+	
+	
+--
+--    CREATE FUNCTION Main() RETURNS BOOLEAN
+--    BEGIN
+--
+--        -- COMMON ERROR RESPONSE
+--
+--        SET OutputRoot.JSON.Data.status =
+--            'FAILED';
+--
+--        SET OutputRoot.JSON.Data.error.code =
+--            Environment.Variables.ErrorCode;
+--
+--        SET OutputRoot.JSON.Data.error.message =
+--            Environment.Variables.ErrorMessage;
+--
+--
+--        -- CASE 1: INVALID REQUEST - 400
+--
+--        IF Environment.Variables.ErrorCode = '400' THEN
+--
+--            RETURN TRUE;
+--
+--
+--        -- CASE 2: ACCOUNT NOT FOUND - ER001
+--
+--        ELSEIF Environment.Variables.ErrorCode = 'ER001' THEN
+--
+--            SET OutputRoot.JSON.Data.error.details =
+--                'Verify the account number and retry.';
+--
+--
+--        -- CASE 3: INSUFFICIENT FUNDS - ER002
+--
+--        ELSEIF Environment.Variables.ErrorCode = 'ER002' THEN
+--
+--            SET OutputRoot.JSON.Data.error.details =
+--                'The debit account does not have sufficient available balance.';
+--
+--
+--        -- CASE 4: DORMANT / FROZEN - ER004
+--
+--        ELSEIF Environment.Variables.ErrorCode = 'ER004' THEN
+--
+--            SET OutputRoot.JSON.Data.error.details =
+--                'Contact Core Banking team.';
+--
+--
+--        -- CASE 5: FINACLE ERROR - ER099
+--
+--        ELSEIF Environment.Variables.ErrorCode = 'ER099' THEN
+--
+--            SET OutputRoot.JSON.Data.error.details =
+--                'An unexpected error occurred while processing the request.';
+--
+--
+--        -- CASE 6: SERVICE UNAVAILABLE - 503
+--
+--        ELSEIF Environment.Variables.ErrorCode = '503' THEN
+--
+--            SET OutputRoot.JSON.Data.requestId =
+--                Environment.Variables.RequestId;
+--
+--            SET OutputRoot.JSON.Data.error.details =
+--                'The api is currently unavailable. Please try again later.';
+--
+--        END IF;
+--
+--
+--        RETURN TRUE;
+--
+--    END;
+--
+--END MODULE;

@@ -1,0 +1,245 @@
+
+
+
+PATH AccountInquiry_SharedLibrary;
+
+CREATE COMPUTE MODULE postAccInq_Compute2
+	
+    CREATE FUNCTION Main() RETURNS BOOLEAN
+    BEGIN
+
+        DECLARE success BOOLEAN;
+
+        -- READ SUCCESS FLAG
+        SET success =
+            CAST(
+                InputRoot.XMLNSC.AccountInquiryResponse.success
+                AS BOOLEAN
+            );
+
+
+        -- SUCCESS RESPONSE
+        IF success = TRUE THEN
+
+            SET OutputRoot.JSON.Data.success =
+                TRUE;
+
+            SET OutputRoot.JSON.Data.correlationId =
+                InputRoot.XMLNSC.AccountInquiryResponse.correlationId;
+
+            SET OutputRoot.JSON.Data.accountId =
+                InputRoot.XMLNSC.AccountInquiryResponse.accountId;
+
+            SET OutputRoot.JSON.Data.accountName =
+                InputRoot.XMLNSC.AccountInquiryResponse.accountName;
+
+            SET OutputRoot.JSON.Data.accountType =
+                InputRoot.XMLNSC.AccountInquiryResponse.accountType;
+
+            SET OutputRoot.JSON.Data.accountStatus =
+                InputRoot.XMLNSC.AccountInquiryResponse.accountStatus;
+
+            SET OutputRoot.JSON.Data.currency =
+                InputRoot.XMLNSC.AccountInquiryResponse.currency;
+
+            SET OutputRoot.JSON.Data.balances.LEDGER.amount =
+                InputRoot.XMLNSC.AccountInquiryResponse.balances.LEDGER.amount;
+
+            SET OutputRoot.JSON.Data.balances.AVAIL.amount =
+                InputRoot.XMLNSC.AccountInquiryResponse.balances.AVAIL.amount;
+
+            SET OutputRoot.JSON.Data.branchCode =
+                InputRoot.XMLNSC.AccountInquiryResponse.branchCode;
+
+            SET OutputRoot.JSON.Data.customerId =
+                InputRoot.XMLNSC.AccountInquiryResponse.customerId;
+
+
+            -- CHANNEL RESPONSE LOGGING
+            -- Shared Library Procedure
+
+            CALL LogChannelResponse
+            (
+                ApplicationLabel,
+
+                MessageFlowLabel,
+
+                CAST
+                (
+                    ASBITSTREAM(OutputRoot.JSON CCSID 1208)
+                    AS CHARACTER CCSID 1208
+                )
+            );
+
+
+            RETURN TRUE;
+
+        END IF;
+
+
+        -- ERROR RESPONSE
+
+        SET Environment.Variables.ErrorCode =
+            InputRoot.XMLNSC.AccountInquiryResponse.error.code;
+
+        SET Environment.Variables.ErrorMessage =
+            InputRoot.XMLNSC.AccountInquiryResponse.error.message;
+
+
+        -- 503 REQUEST ID
+
+        IF Environment.Variables.ErrorCode = '503' THEN
+
+            SET Environment.Variables.RequestId =
+                InputRoot.XMLNSC.AccountInquiryResponse.requestId;
+
+        END IF;
+
+
+        -- FAILURE
+        
+        PROPAGATE TO TERMINAL 'failure';
+
+        RETURN FALSE;
+
+    END;
+
+END MODULE;
+
+	
+	
+--
+--
+--    CREATE PROCEDURE LogChannelResponseDB
+--    (
+--        IN applicationName CHARACTER,
+--        IN messageFlowName CHARACTER,
+--        IN messageData CHARACTER
+--    )
+--    LANGUAGE DATABASE
+--    EXTERNAL NAME "LOG_CHANNEL_RESPONSE";
+--
+--
+--    CREATE FUNCTION Main() RETURNS BOOLEAN
+--
+--    BEGIN
+--
+--        DECLARE success BOOLEAN;
+--
+--        SET success =
+--
+--            CAST(
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.success
+--
+--                AS BOOLEAN
+--
+--            );
+--
+--
+--        -- =========================================
+--        -- SUCCESS RESPONSE
+--        -- =========================================
+--
+--        IF success = TRUE THEN
+--
+--            SET OutputRoot.JSON.Data.success =
+--
+--                TRUE;
+--
+--            SET OutputRoot.JSON.Data.correlationId =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.correlationId;
+--
+--            SET OutputRoot.JSON.Data.accountId =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.accountId;
+--
+--            SET OutputRoot.JSON.Data.accountName =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.accountName;
+--
+--            SET OutputRoot.JSON.Data.accountType =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.accountType;
+--
+--            SET OutputRoot.JSON.Data.accountStatus =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.accountStatus;
+--
+--            SET OutputRoot.JSON.Data.currency =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.currency;
+--
+--            SET OutputRoot.JSON.Data.balances.LEDGER.amount =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.balances.LEDGER.amount;
+--
+--            SET OutputRoot.JSON.Data.balances.AVAIL.amount =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.balances.AVAIL.amount;
+--
+--            SET OutputRoot.JSON.Data.branchCode =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.branchCode;
+--
+--            SET OutputRoot.JSON.Data.customerId =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.customerId;
+--
+--
+--            -- =========================================
+--            -- CHANNEL RESPONSE LOGGING - SUCCESS
+--            -- =========================================
+--
+--            CALL LogChannelResponseDB
+--            (
+--                ApplicationLabel,
+--                MessageFlowLabel,
+--                CAST(
+--                    ASBITSTREAM(OutputRoot.JSON CCSID 1208)
+--                    AS CHARACTER CCSID 1208
+--                )
+--            );
+--
+--
+--            RETURN TRUE;
+--
+--        END IF;
+--
+--
+--        -- =========================================
+--        -- ERROR RESPONSE
+--        -- =========================================
+--
+--        SET Environment.Variables.ErrorCode =
+--
+--            InputRoot.XMLNSC.AccountInquiryResponse.error.code;
+--
+--        SET Environment.Variables.ErrorMessage =
+--
+--            InputRoot.XMLNSC.AccountInquiryResponse.error.message;
+--
+--
+--        -- =========================================
+--        -- 503 REQUEST ID
+--        -- =========================================
+--
+--        IF Environment.Variables.ErrorCode = '503' THEN
+--
+--            SET Environment.Variables.RequestId =
+--
+--                InputRoot.XMLNSC.AccountInquiryResponse.requestId;
+--
+--        END IF;
+--
+--
+--        PROPAGATE TO TERMINAL 'failure';
+--
+--        RETURN FALSE;
+--
+--    END;
+--
+--END MODULE;
+--	
+--;
